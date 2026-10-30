@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#04070f">
+<meta name="description" content="VOIDLINE — a top-down space sandbox of trade, mining, combat and exploration.">
+<title>VOIDLINE — Space Sandbox</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2304070f'/%3E%3Cpath d='M16 4l8 14-8 10-8-10z' fill='%2341d6e0'/%3E%3Cpath d='M16 10l4 8-4 5-4-5z' fill='%23ffb648'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app">
+  <canvas id="game" aria-label="Space game view"></canvas>
+  <div id="scanlines"></div>
+  <div id="vignette"></div>
+
+  <!-- ═══════════════ HUD ═══════════════ -->
+  <div id="hud" class="hidden">
+    <div class="hud-top">
+      <div class="glass ship-panel" id="ship-panel">
+        <div class="ship-id">
+          <div>
+            <div class="eyebrow" id="hud-role">COMBAT</div>
+            <div class="ship-title"><span id="hud-ship-name">TALON</span><span class="tier-badge" id="hud-tier">T1</span></div>
+          </div>
+          <div class="ship-silhouette"><canvas id="hud-ship-canvas" width="128" height="70"></canvas></div>
+        </div>
+        <div class="meter shield-meter">
+          <div class="meter-head"><span>SHIELD</span><b id="hud-shield-text">78</b></div>
+          <div class="meter-track"><i id="hud-shield-bar"></i></div>
+        </div>
+        <div class="meter hull-meter">
+          <div class="meter-head"><span>HULL</span><b id="hud-hull-text">158</b></div>
+          <div class="meter-track"><i id="hud-hull-bar"></i></div>
+        </div>
+        <div class="meter boost-meter">
+          <div class="meter-head"><span>BOOST</span><b id="hud-boost-text">100</b></div>
+          <div class="meter-track"><i id="hud-boost-bar"></i></div>
+        </div>
+        <div class="panel-foot">
+          <span class="cargo-read"><i class="ico-cargo"></i><b id="hud-cargo">0</b>/<span id="hud-cargo-max">25</span> CARGO</span>
+          <span class="credit-read">◈ <b id="hud-credits">0</b></span>
+        </div>
+      </div>
+
+      <div class="sector-chip glass">
+        <span class="eyebrow">CURRENT SECTOR</span>
+        <strong id="hud-sector">HELIOS PRIME</strong>
+        <span class="danger-pips" id="hud-danger"></span>
+      </div>
+
+      <div class="hud-right">
+        <div class="top-actions">
+          <button class="hud-btn" id="btn-map"><span class="glyph">◈</span> MAP</button>
+          <button class="hud-btn icon" id="btn-menu"><span class="glyph">☰</span></button>
+        </div>
+        <div class="radar glass">
+          <canvas id="minimap" width="360" height="360"></canvas>
+          <div class="radar-ring"></div>
+          <div class="radar-label" id="radar-label">2.4 KM</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="mission-tracker" class="glass hidden">
+      <div class="eyebrow">ACTIVE CONTRACT</div>
+      <div class="mission-title" id="mission-title">—</div>
+      <div class="mission-sub" id="mission-sub">—</div>
+      <div class="mission-progress"><i id="mission-bar"></i></div>
+    </div>
+
+    <div id="dock-prompt" class="hidden">
+      <button id="btn-dock"><span class="dock-key">E</span> DOCK AT <b id="dock-name">STATION</b></button>
+    </div>
+
+    <div id="touch-controls">
+      <div id="joystick" class="hidden">
+        <div id="stick"></div>
+        <span class="joy-glyph">✦</span>
+      </div>
+      <div id="action-buttons">
+        <div class="action-col">
+          <button id="btn-mine" class="action small" aria-label="Mining beam"><span class="a-glyph">◇</span><span class="a-label">MINE</span></button>
+          <button id="btn-boost" class="action small" aria-label="Boost"><span class="a-glyph">»</span><span class="a-label">BOOST</span></button>
+        </div>
+        <button id="btn-fire" class="action fire" aria-label="Fire weapons"><span class="a-glyph">✧</span><span class="a-label">FIRE</span></button>
+      </div>
+      <button id="btn-interact" class="action interact hidden">DOCK</button>
+    </div>
+
+    <div id="desktop-hints">
+      <span><b>WASD</b> thrust</span><span><b>MOUSE</b> aim</span><span><b>CLICK</b> fire</span><span><b>F</b> mine</span><span><b>E</b> dock</span><span><b>SHIFT</b> boost</span><span><b>M</b> map</span>
+    </div>
+    <div id="warp-banner" class="hidden"><span>WARP DRIVE ENGAGED</span><strong id="warp-dest">—</strong></div>
+    <div id="crosshair" class="hidden"></div>
+    <div id="damage-flash"></div>
+  </div>
+
+  <!-- ═══════════════ TITLE ═══════════════ -->
+  <section id="title-screen" class="screen title-screen">
+    <div class="title-grain"></div>
+    <div class="title-content">
+      <div class="brand">
+        <div class="brand-kicker">A SANDBOX OF STARS</div>
+        <h1 class="wordmark">VOID<span>LINE</span></h1>
+        <div class="brand-rule"><i></i><span>TRADE · MINE · FIGHT · EXPLORE</span><i></i></div>
+      </div>
+      <div class="title-actions">
+        <button id="btn-new" class="btn primary big">NEW CAREER</button>
+        <button id="btn-continue" class="btn ghost big hidden">CONTINUE JOURNEY</button>
+        <button id="btn-title-settings" class="btn ghost">SETTINGS</button>
+      </div>
+      <div class="title-footer">
+        <span>UNIVERSE SEED <b id="title-seed">—</b></span>
+        <span class="title-hint">HEADPHONES RECOMMENDED</span>
+      </div>
+    </div>
+    <div class="title-side">
+      <div class="side-stat"><span>SHIP CLASSES</span><b>60</b></div>
+      <div class="side-stat"><span>SECTORS</span><b>∞</b></div>
+      <div class="side-stat"><span>STATIONS</span><b>PROCEDURAL</b></div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ PATH SELECT ═══════════════ -->
+  <section id="select-screen" class="screen select-screen hidden">
+    <div class="select-head">
+      <div class="eyebrow">CAREER REGISTRATION // STEP 01</div>
+      <h2>CHOOSE YOUR FIRST HULL</h2>
+      <p>Every captain begins with a loaner ship. Your first hull is free — your reputation is not.</p>
+    </div>
+    <div id="path-cards" class="path-cards"></div>
+    <div class="select-foot">
+      <span>ALL PATHS CAN BUY ANY SHIP CLASS LATER</span>
+      <button id="btn-select-back" class="btn ghost">BACK</button>
+    </div>
+  </section>
+
+  <!-- ═══════════════ STATION ═══════════════ -->
+  <section id="station-screen" class="overlay hidden">
+    <div class="station-shell glass-strong">
+      <header class="station-head">
+        <div class="station-brand">
+          <div class="eyebrow" id="stn-eyebrow">DOCKED // SECTOR 0,0</div>
+          <h2 id="stn-name">HALCYON EXCHANGE</h2>
+          <div class="station-meta">
+            <span id="stn-type">ORBITAL EXCHANGE</span>
+            <span class="dot">·</span>
+            <span id="stn-faction">FREE TRADERS UNION</span>
+            <span class="dot">·</span>
+            <span>TECH <b id="stn-tech">3</b></span>
+          </div>
+        </div>
+        <div class="station-balance">
+          <span class="eyebrow">AVAILABLE CREDITS</span>
+          <b class="credits-big" id="stn-credits">◈ 0</b>
+          <button id="btn-undock" class="btn primary">UNDOCK</button>
+        </div>
+      </header>
+      <nav class="station-tabs" id="station-tabs">
+        <button data-tab="shipyard" class="active">SHIPYARD</button>
+        <button data-tab="market">MARKET</button>
+        <button data-tab="contracts">CONTRACTS</button>
+        <button data-tab="services">SERVICES</button>
+      </nav>
+      <div class="station-body">
+        <div class="tab-panel" id="tab-shipyard"></div>
+        <div class="tab-panel hidden" id="tab-market"></div>
+        <div class="tab-panel hidden" id="tab-contracts"></div>
+        <div class="tab-panel hidden" id="tab-services"></div>
+      </div>
+      <footer class="station-foot">
+        <span id="stn-footnote">DOCKING CLAMP SECURED · MARKET FEED LIVE</span>
+        <span class="foot-cargo">CARGO <b id="stn-cargo">0 / 25</b></span>
+      </footer>
+    </div>
+  </section>
+
+  <!-- ═══════════════ STAR MAP ═══════════════ -->
+  <section id="map-screen" class="overlay hidden">
+    <div class="map-shell glass-strong">
+      <header class="map-head">
+        <div>
+          <div class="eyebrow">NAVIGATION ARRAY // LONG RANGE</div>
+          <h2>STAR CHART</h2>
+        </div>
+        <div class="map-head-right">
+          <div class="chart-credits">◈ <b id="map-credits">0</b></div>
+          <button id="btn-map-close" class="btn ghost">CLOSE</button>
+        </div>
+      </header>
+      <div class="map-body">
+        <div class="map-canvas-wrap">
+          <canvas id="galaxy-map"></canvas>
+          <div class="map-coords" id="map-coords">SECTOR 0 : 0</div>
+        </div>
+        <aside class="map-side">
+          <div class="map-info-empty" id="map-info-empty">
+            <span class="scan-icon">⌖</span>
+            <p>Select a charted sector to inspect it.<br>Only adjacent sectors can be jumped to.</p>
+          </div>
+          <div id="map-info" class="hidden">
+            <div class="eyebrow" id="mi-status">CHARTED</div>
+            <h3 id="mi-name">—</h3>
+            <div class="mi-coords" id="mi-coords">SECTOR 0 : 0</div>
+            <div class="mi-danger"><span>THREAT</span><div id="mi-danger-pips"></div></div>
+            <div class="mi-rows">
+              <div><span>STATIONS</span><b id="mi-stations">—</b></div>
+              <div><span>PLANETS</span><b id="mi-planets">—</b></div>
+              <div><span>ASTEROID FIELDS</span><b id="mi-fields">—</b></div>
+              <div><span>ANOMALY</span><b id="mi-anomaly">—</b></div>
+            </div>
+            <div class="mi-route" id="mi-route"></div>
+            <button id="btn-jump" class="btn primary wide">ENGAGE WARP</button>
+            <p class="mi-note" id="mi-note"></p>
+          </div>
+          <div class="map-legend">
+            <span><i class="lg current"></i>YOU</span>
+            <span><i class="lg station"></i>STATION</span>
+            <span><i class="lg visited"></i>CHARTED</span>
+            <span><i class="lg unknown"></i>UNKNOWN</span>
+          </div>
+        </aside>
+      </div>
+      <footer class="map-foot">
+        <span>TAP A SECTOR TO PLOT A COURSE</span>
+        <span class="warp-note">WARP RANGE: 1 SECTOR · NO FUEL COST</span>
+      </footer>
+    </div>
+  </section>
+
+  <!-- ═══════════════ SETTINGS ═══════════════ -->
+  <section id="settings-screen" class="overlay hidden">
+    <div class="settings-shell glass-strong">
+      <header class="settings-head">
+        <div><div class="eyebrow">SYSTEMS CONFIGURATION</div><h2>SETTINGS</h2></div>
+        <button id="btn-settings-close" class="btn ghost">CLOSE</button>
+      </header>
+      <div class="settings-body">
+        <div class="setting-row">
+          <div><b>SOUND & MUSIC</b><p>Synthesized ambience, weapons and UI feedback.</p></div>
+          <button id="toggle-sound" class="toggle on"><span></span></button>
+        </div>
+        <div class="setting-row">
+          <div><b>TILT STEERING</b><p>Use your device's accelerometer to steer. Requests motion permission on iOS.</p></div>
+          <button id="toggle-tilt" class="toggle"><span></span></button>
+        </div>
+        <div class="setting-row">
+          <div><b>CONTROL SENSITIVITY</b><p id="sens-value">1.0×</p></div>
+          <input type="range" id="sens-range" min="0.5" max="1.8" step="0.1" value="1">
+        </div>
+        <div class="setting-row">
+          <div><b>VISUAL EFFECTS</b><p>Lower this if the game runs slowly on older tablets.</p></div>
+          <div class="segmented" id="quality-seg">
+            <button data-q="high" class="active">HIGH</button>
+            <button data-q="low">LOW</button>
+          </div>
+        </div>
+        <div class="setting-row danger-row">
+          <div><b>RESET SAVE</b><p>Erase this career permanently. The void forgets nothing else.</p></div>
+          <button id="btn-reset-save" class="btn danger">ERASE</button>
+        </div>
+      </div>
+      <footer class="settings-foot">
+        <span>VOIDLINE · BUILD 1.0 · TOUCH / TILT / KEYBOARD</span>
+      </footer>
+    </div>
+  </section>
+
+  <!-- ═══════════════ PAUSE ═══════════════ -->
+  <section id="pause-screen" class="overlay hidden">
+    <div class="pause-shell glass-strong">
+      <div class="eyebrow">FLIGHT PAUSED</div>
+      <h2>RESUME THE DRIFT</h2>
+      <div class="pause-stats" id="pause-stats"></div>
+      <div class="pause-actions">
+        <button id="btn-resume" class="btn primary wide">RESUME</button>
+        <button id="btn-pause-settings" class="btn ghost wide">SETTINGS</button>
+        <button id="btn-save-quit" class="btn ghost wide">SAVE & RETURN TO TITLE</button>
+      </div>
+      <p class="pause-note">Progress auto-saves when you dock, jump, or trade.</p>
+    </div>
+  </section>
+
+  <!-- ═══════════════ DEATH ═══════════════ -->
+  <section id="death-screen" class="overlay hidden">
+    <div class="death-shell glass-strong">
+      <div class="eyebrow danger-text">HULL INTEGRITY LOST</div>
+      <h2>ADRIFT IN THE DARK</h2>
+      <p id="death-reason">Your hull was breached. Emergency services recovered your pod.</p>
+      <div class="death-penalty" id="death-penalty">—</div>
+      <button id="btn-respawn" class="btn primary big">RETURN TO STATION</button>
+      <p class="pause-note">Insurance covers the hull. Cargo and a recovery fee are lost.</p>
+    </div>
+  </section>
+
+  <!-- ═══════════════ MISC ═══════════════ -->
+  <div id="toast-layer"></div>
+  <div id="modal-layer" class="hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal glass-strong" id="modal">
+      <div class="eyebrow" id="modal-eyebrow">CONFIRM</div>
+      <h3 id="modal-title">—</h3>
+      <p id="modal-text">—</p>
+      <div class="modal-actions">
+        <button id="modal-cancel" class="btn ghost">CANCEL</button>
+        <button id="modal-confirm" class="btn primary">CONFIRM</button>
+      </div>
+    </div>
+  </div>
+  <div id="rotate-hint" class="hidden"><span>↻</span> ROTATE FOR A WIDER VIEW</div>
+  <div id="boot-error" class="hidden"></div>
+</div>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
